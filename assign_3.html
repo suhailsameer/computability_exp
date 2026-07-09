@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Regex, PSPACE, and EXPSPACE Explained</title>
+	<style>
+		:root {
+			--bg: #0f172a;
+			--bg-soft: #111827;
+			--panel: rgba(15, 23, 42, 0.82);
+			--panel-2: rgba(30, 41, 59, 0.92);
+			--text: #e5eefb;
+			--muted: #a7b3c8;
+			--line: rgba(148, 163, 184, 0.2);
+			--accent: #ffb703;
+			--accent-2: #38bdf8;
+			--accent-3: #22c55e;
+			--shadow: 0 28px 80px rgba(2, 6, 23, 0.45);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		html {
+			scroll-behavior: smooth;
+		}
+
+		body {
+			margin: 0;
+			font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+			color: var(--text);
+			background:
+				radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 28%),
+				radial-gradient(circle at top right, rgba(255, 183, 3, 0.16), transparent 30%),
+				linear-gradient(180deg, #0b1020 0%, #111827 45%, #0f172a 100%);
+			min-height: 100vh;
+			line-height: 1.6;
+		}
+
+		a {
+			color: inherit;
+		}
+
+		.page {
+			width: min(1180px, calc(100% - 32px));
+			margin: 0 auto;
+			padding: 28px 0 56px;
+		}
+
+		.hero {
+			position: relative;
+			overflow: hidden;
+			padding: 40px 28px 32px;
+			border: 1px solid var(--line);
+			border-radius: 28px;
+			background: linear-gradient(160deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.7));
+			box-shadow: var(--shadow);
+		}
+
+		.hero::after {
+			content: "";
+			position: absolute;
+			inset: auto -120px -120px auto;
+			width: 340px;
+			height: 340px;
+			border-radius: 50%;
+			background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+			pointer-events: none;
+		}
+
+		.eyebrow {
+			display: inline-flex;
+			align-items: center;
+			gap: 10px;
+			padding: 8px 14px;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.03);
+			color: var(--muted);
+			font-size: 0.92rem;
+			letter-spacing: 0.02em;
+		}
+
+		.eyebrow strong {
+			color: var(--accent);
+			font-weight: 700;
+		}
+
+		h1, h2, h3, p {
+			margin: 0;
+		}
+
+		h1 {
+			margin-top: 18px;
+			font-size: clamp(2.3rem, 5vw, 4.8rem);
+			line-height: 1.02;
+			letter-spacing: -0.04em;
+			max-width: 12ch;
+		}
+
+		.hero-copy {
+			max-width: 70ch;
+			margin-top: 18px;
+			color: #d7e1f2;
+			font-size: 1.08rem;
+		}
+
+		.hero-grid {
+			display: grid;
+			grid-template-columns: 1.15fr 0.85fr;
+			gap: 20px;
+			margin-top: 28px;
+			align-items: stretch;
+		}
+
+		.highlight-panel,
+		.summary-panel,
+		.section,
+		.mini-card {
+			border: 1px solid var(--line);
+			background: var(--panel);
+			border-radius: 22px;
+			box-shadow: 0 16px 50px rgba(2, 6, 23, 0.22);
+		}
+
+		.highlight-panel {
+			padding: 22px;
+		}
+
+		.summary-panel {
+			padding: 22px;
+			background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.9));
+		}
+
+		.summary-panel h2,
+		.section h2 {
+			font-size: 1.55rem;
+			letter-spacing: -0.02em;
+			margin-bottom: 12px;
+		}
+
+		.summary-list {
+			display: grid;
+			gap: 14px;
+			margin-top: 16px;
+		}
+
+		.summary-item {
+			display: grid;
+			grid-template-columns: 42px 1fr;
+			gap: 14px;
+			align-items: start;
+			padding: 14px;
+			border-radius: 18px;
+			background: rgba(255, 255, 255, 0.03);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+		}
+
+		.badge {
+			width: 42px;
+			height: 42px;
+			border-radius: 14px;
+			display: grid;
+			place-items: center;
+			font-weight: 800;
+			color: #0b1020;
+			background: linear-gradient(135deg, var(--accent), #ffd166);
+		}
+
+		.summary-item p,
+		.mini-card p,
+		.section p,
+		li {
+			color: var(--muted);
+		}
+
+		.section {
+			padding: 26px;
+			margin-top: 22px;
+		}
+
+		.section-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 16px;
+			margin-top: 18px;
+		}
+
+		.mini-card {
+			padding: 18px;
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.mini-card h3 {
+			font-size: 1.05rem;
+			margin-bottom: 8px;
+		}
+
+		.pill-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-top: 14px;
+		}
+
+		.pill {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+			border-radius: 999px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(255, 255, 255, 0.04);
+			color: #d8e4f4;
+			font-size: 0.95rem;
+		}
+
+		.formula {
+			margin-top: 14px;
+			padding: 16px;
+			border-left: 4px solid var(--accent-2);
+			background: rgba(56, 189, 248, 0.08);
+			border-radius: 14px;
+			color: #dfeeff;
+			font-size: 1rem;
+		}
+
+		.split {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 18px;
+			margin-top: 18px;
+			align-items: start;
+		}
+
+		.callout {
+			padding: 18px;
+			border-radius: 18px;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(255, 255, 255, 0.03);
+		}
+
+		.callout strong {
+			color: #fff7cc;
+		}
+
+		.timeline {
+			display: grid;
+			gap: 12px;
+			margin-top: 18px;
+		}
+
+		.timeline-item {
+			display: grid;
+			grid-template-columns: 34px 1fr;
+			gap: 12px;
+			align-items: start;
+			padding: 14px 0;
+			border-top: 1px solid var(--line);
+		}
+
+		.timeline-item:first-child {
+			border-top: 0;
+			padding-top: 0;
+		}
+
+		.dot {
+			width: 34px;
+			height: 34px;
+			border-radius: 50%;
+			display: grid;
+			place-items: center;
+			font-weight: 800;
+			color: #0b1020;
+			background: linear-gradient(135deg, var(--accent-3), #9cf6a5);
+		}
+
+		.big-quote {
+			margin-top: 18px;
+			padding: 20px;
+			border-radius: 20px;
+			background: linear-gradient(135deg, rgba(255, 183, 3, 0.14), rgba(56, 189, 248, 0.08));
+			border: 1px solid rgba(255, 255, 255, 0.09);
+			color: #f0f7ff;
+			font-size: 1.06rem;
+		}
+
+		.diagram {
+			margin-top: 18px;
+			padding: 18px;
+			border-radius: 20px;
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+			border: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.footer-note {
+			margin-top: 18px;
+			color: var(--muted);
+			font-size: 0.95rem;
+		}
+
+		code, .code {
+			font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+			font-size: 0.95em;
+			color: #fff2b2;
+		}
+
+		ul {
+			margin: 14px 0 0;
+			padding-left: 18px;
+		}
+
+		li {
+			margin-top: 8px;
+		}
+
+		@media (max-width: 920px) {
+			.hero-grid,
+			.section-grid,
+			.split {
+				grid-template-columns: 1fr;
+			}
+
+			h1 {
+				max-width: none;
+			}
+		}
+
+		@media (max-width: 640px) {
+			.page {
+				width: min(100% - 20px, 1180px);
+				padding-top: 10px;
+			}
+
+			.hero,
+			.section {
+				border-radius: 20px;
+				padding: 20px;
+			}
+
+			.summary-panel,
+			.highlight-panel {
+				padding: 18px;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="page">
+		<section class="hero">
+			<div class="eyebrow"><strong>Teaching page</strong> for a minimal-background audience</div>
+			<h1>Why regex equivalence can become extremely hard</h1>
+			<p class="hero-copy">
+				This page turns the ideas from the source material into a plain-language story. It starts with the basic idea of
+				regular expressions, then explains space complexity, PSPACE, and finally why adding squaring to regexes pushes the
+				equivalence problem to EXPSPACE-complete.
+			</p>
+
+			<div class="hero-grid">
+				<article class="highlight-panel">
+					<h2>Big picture</h2>
+					<div class="pill-row">
+						<span class="pill">regular expressions</span>
+						<span class="pill">space complexity</span>
+						<span class="pill">PSPACE</span>
+						<span class="pill">EXPSPACE</span>
+					</div>
+					<p class="big-quote">
+						The key idea is that more expressive descriptions can hide much larger structures. Once regexes can use a
+						squaring operation <span class="code">R^2 = RR</span>, deciding whether two expressions describe the same language
+						can require exponential space.
+					</p>
+					<div class="diagram" aria-label="Simple analogy diagram">
+						<svg viewBox="0 0 820 220" width="100%" height="220" role="img" aria-label="Memory versus time analogy">
+							<defs>
+								<linearGradient id="g1" x1="0" x2="1">
+									<stop offset="0%" stop-color="#38bdf8" />
+									<stop offset="100%" stop-color="#22c55e" />
+								</linearGradient>
+							</defs>
+							<rect x="10" y="10" width="800" height="200" rx="22" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" />
+							<line x1="60" y1="170" x2="760" y2="170" stroke="rgba(255,255,255,0.25)" stroke-width="2" />
+							<line x1="60" y1="170" x2="60" y2="42" stroke="rgba(255,255,255,0.25)" stroke-width="2" />
+							<text x="40" y="36" fill="#d7e1f2" font-size="18">memory used</text>
+							<text x="714" y="192" fill="#d7e1f2" font-size="18">time spent</text>
+							<path d="M80 160 C 180 155, 230 130, 300 112 S 420 75, 520 58 S 650 42, 730 30" fill="none" stroke="url(#g1)" stroke-width="6" stroke-linecap="round" />
+							<path d="M80 160 C 180 142, 270 126, 350 112 S 490 90, 590 62 S 680 42, 730 26" fill="none" stroke="rgba(255,183,3,0.65)" stroke-width="6" stroke-dasharray="14 10" stroke-linecap="round" />
+							<rect x="98" y="118" width="150" height="30" rx="15" fill="#38bdf8" opacity="0.18" />
+							<text x="112" y="139" fill="#d7e1f2" font-size="18">small memory, longer time</text>
+							<rect x="492" y="44" width="180" height="30" rx="15" fill="#ffb703" opacity="0.18" />
+							<text x="506" y="65" fill="#d7e1f2" font-size="18">more memory, huge time</text>
+						</svg>
+					</div>
+				</article>
+
+				<aside class="summary-panel">
+					<h2>Three sentences to remember</h2>
+					<div class="summary-list">
+						<div class="summary-item">
+							<div class="badge">1</div>
+							<div>
+								<p><strong>Space complexity</strong> counts how much memory an algorithm uses, not how long it runs.</p>
+							</div>
+						</div>
+						<div class="summary-item">
+							<div class="badge">2</div>
+							<div>
+								<p><strong>PSPACE</strong> is the class of problems solvable with polynomial memory.</p>
+							</div>
+						</div>
+						<div class="summary-item">
+							<div class="badge">3</div>
+							<div>
+								<p><strong>Regex equivalence with squaring</strong> is so expressive that it reaches EXPSPACE-complete territory.</p>
+							</div>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</section>
+
+		<section class="section" id="basics">
+			<h2>1. Start with the basics: what is a regular expression?</h2>
+			<p>
+				A regular expression is a compact way to describe a set of strings. For example, <span class="code">a*b</span>
+				means "any number of a's, followed by one b." The important question in the source material is not just
+				whether an expression matches a string, but whether two expressions describe the <em>same</em> set of strings.
+			</p>
+
+			<div class="section-grid">
+				<article class="mini-card">
+					<h3>Matching</h3>
+					<p>Does one specific string belong to the language?</p>
+				</article>
+				<article class="mini-card">
+					<h3>Equivalence</h3>
+					<p>Do two expressions accept exactly the same strings?</p>
+				</article>
+				<article class="mini-card">
+					<h3>Why squaring matters</h3>
+					<p>The operator <span class="code">R^2</span> means "concatenate the pattern with itself." That small change makes the comparison problem much harder.</p>
+				</article>
+			</div>
+		</section>
+
+		<section class="section" id="space">
+			<h2>2. What does space complexity mean?</h2>
+			<div class="split">
+				<div class="callout">
+					<p>
+						Think of space as the number of sticky notes a computer is allowed to keep on its desk while solving a problem.
+						If it can reuse those notes, it may still take a long time, but it does not need much memory.
+					</p>
+					<div class="formula">
+						<strong>Plain version:</strong> a problem is in SPACE(f(n)) if some machine can solve inputs of size n using at
+						most O(f(n)) memory cells.
+					</div>
+				</div>
+				<div class="callout">
+					<p><strong>Why this is different from time:</strong></p>
+					<ul>
+						<li>Time counts how many steps are taken.</li>
+						<li>Space counts how much memory is needed at once.</li>
+						<li>One machine can reuse the same memory cells again and again.</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="timeline">
+				<div class="timeline-item">
+					<div class="dot">A</div>
+					<div>
+						<p><strong>Small space can still mean big time.</strong> A depth-first search can walk through a huge tree while only keeping the current path in memory.</p>
+					</div>
+				</div>
+				<div class="timeline-item">
+					<div class="dot">B</div>
+					<div>
+						<p><strong>That is the point of PSPACE.</strong> It captures problems that are manageable in memory, even if they take a long time.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="section" id="pspace">
+			<h2>3. PSPACE in one sentence</h2>
+			<p>
+				PSPACE is the class of problems solvable using polynomial space. In the source material, this is the big
+				milestone after the basic space-versus-time relationship is introduced.
+			</p>
+
+			<div class="split">
+				<div class="callout">
+					<p><strong>Useful intuition:</strong> polynomial space is memory that grows reasonably with the input size.</p>
+					<div class="formula">
+						PSPACE = union of all SPACE(n<sup>k</sup>) classes for constant k
+					</div>
+				</div>
+				<div class="callout">
+					<p><strong>Example style from the module:</strong></p>
+					<ul>
+						<li>game-tree search</li>
+						<li>logical formulas like TQBF</li>
+						<li>problems with huge branching but manageable recursion depth</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="big-quote">
+				The deep lesson is that a problem can look enormous if you draw out every possibility, but still be tame if you
+				only need to store one branch at a time.
+			</div>
+		</section>
+
+		<section class="section" id="expspace">
+			<h2>4. Why regex equivalence with squaring jumps to EXPSPACE</h2>
+			<p>
+				The source page states the theorem from Stockmeyer and Meyer: once you extend regular expressions with squaring,
+				deciding equivalence becomes EXPSPACE-complete. The audience-friendly version is simple: squaring lets a short
+				expression describe a much larger structure, and the comparison process can explode in size.
+			</p>
+
+			<div class="section-grid">
+				<article class="mini-card">
+					<h3>What squaring does</h3>
+					<p><span class="code">R^2</span> means <span class="code">RR</span>. It is a compact way to repeat a pattern twice.</p>
+				</article>
+				<article class="mini-card">
+					<h3>Why that is powerful</h3>
+					<p>Repeated structure can hide exponential growth in the size of the automaton you would otherwise build.</p>
+				</article>
+				<article class="mini-card">
+					<h3>What EXPSPACE means</h3>
+					<p>It is the class of problems solvable with exponential space, which is far beyond polynomial space.</p>
+				</article>
+			</div>
+
+			<div class="split" style="margin-top: 20px;">
+				<div class="callout">
+					<p><strong>Intuition, not proof:</strong> if the smallest machine that captures the language can be exponentially
+						large, then checking equivalence can force you to reason over that exponential structure.</p>
+				</div>
+				<div class="callout">
+					<p><strong>What the theorem says:</strong> the problem is not just hard; it is complete for the hardest problems in
+						EXPSPACE. That makes it a benchmark example in complexity theory.</p>
+				</div>
+			</div>
+		</section>
+
+		<section class="section" id="presenting">
+			<h2>5. A simple script for presenting this to beginners</h2>
+			<div class="timeline">
+				<div class="timeline-item">
+					<div class="dot">1</div>
+					<div><p>"A regular expression is just a compact description of strings."</p></div>
+				</div>
+				<div class="timeline-item">
+					<div class="dot">2</div>
+					<div><p>"Space complexity asks how much memory we need, not how long we run."</p></div>
+				</div>
+				<div class="timeline-item">
+					<div class="dot">3</div>
+					<div><p>"PSPACE means polynomial memory; EXPSPACE means exponential memory."</p></div>
+				</div>
+				<div class="timeline-item">
+					<div class="dot">4</div>
+					<div><p>"When regexes gain squaring, equivalence becomes so expressive that it reaches EXPSPACE-complete."</p></div>
+				</div>
+			</div>
+			<p class="footer-note">
+				This version is designed to be used as a teaching page in a browser, with short explanations, strong visual cues,
+				and enough structure for an audience with very little prior theory background.
+			</p>
+		</section>
+	</main>
+</body>
+</html>

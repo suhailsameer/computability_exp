@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCP Undecidability · Interactive Tool</title>
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --surface: #141624;
+    --surface2: #1c1f33;
+    --border: #2a2d45;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #43d9ad;
+    --yellow: #ffd166;
+    --text: #e8eaf6;
+    --muted: #8b8fa8;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #0d0f1a 0%, #1a1040 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% -10%, rgba(108,99,255,0.25), transparent);
+    pointer-events: none;
+  }
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    font-size: clamp(24px, 5vw, 44px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  header h1 span { color: var(--accent); }
+  header p {
+    color: var(--muted);
+    max-width: 540px;
+    margin: 0 auto;
+    font-size: 15px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13,15,26,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .35s ease-in-out, border-color .35s ease-in-out;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── SECTIONS ── */
+  .section {
+    display: none;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  .section.visible { display: block; }
+
+  .level-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .level-tag.easy { background: rgba(67,217,173,0.15); color: var(--green); }
+  .level-tag.medium { background: rgba(255,209,102,0.15); color: var(--yellow); }
+  .level-tag.hard { background: rgba(255,101,132,0.15); color: var(--accent2); }
+
+  h2 {
+    font-size: clamp(20px, 4vw, 30px);
+    font-weight: 700;
+    letter-spacing: -.5px;
+    margin-bottom: 8px;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  p { color: #c8cadb; margin-bottom: 16px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: transform .35s ease-in-out, box-shadow .35s ease-in-out, border-color .35s ease-in-out;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card.accent-left { border-left: 3px solid var(--accent); }
+  .card.green-left { border-left: 3px solid var(--green); }
+  .card.yellow-left { border-left: 3px solid var(--yellow); }
+  .card.red-left { border-left: 3px solid var(--accent2); }
+
+  /* ── DOMINO ── */
+  .domino {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 56px;
+    transition: border-color .35s ease-in-out, transform .35s ease-in-out, box-shadow .35s ease-in-out;
+    cursor: default;
+    user-select: none;
+  }
+  .domino:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .domino .top {
+    background: rgba(108,99,255,0.15);
+    color: #b4aaff;
+    padding: 8px 14px;
+    width: 100%;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .domino .bot {
+    background: rgba(255,101,132,0.12);
+    color: #ffaab9;
+    padding: 8px 14px;
+    width: 100%;
+    text-align: center;
+  }
+  .domino.selected { border-color: var(--green); }
+  .domino.selected .top { background: rgba(67,217,173,0.18); color: var(--green); }
+  .domino.selected .bot { background: rgba(67,217,173,0.12); color: var(--green); }
+
+  .domino-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin: 16px 0;
+  }
+
+  /* ── PLAYGROUND ── */
+  .seq-area {
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    min-height: 90px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    transition: all .35s ease-in-out;
+  }
+  .seq-area .placeholder {
+    color: var(--muted);
+    font-size: 13px;
+    font-style: italic;
+  }
+
+  .concat-bar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    transition: all .35s ease-in-out;
+  }
+  .concat-bar span { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .top-str { color: #b4aaff; }
+  .bot-str { color: #ffaab9; }
+  .match-ok { color: var(--green); font-weight: 700; }
+  .match-no { color: var(--accent2); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background .3s ease-in-out, border-color .3s ease-in-out, transform .2s ease-out;
+  }
+  .btn:hover { background: var(--border); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #5a52e0; }
+  .btn.danger { border-color: var(--accent2); }
+  .btn.danger:hover { background: rgba(255,101,132,.1); }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+  /* ── REDUCTION DIAGRAM ── */
+  .reduction-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    transition: all .35s ease-in-out;
+  }
+  .reduction-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .box-label {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--text);
+    font-size: 12px;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arrow { color: var(--accent); font-size: 18px; }
+
+  /* ── TM HISTORY ── */
+  .config-row {
+    display: flex;
+    gap: 6px;
+    margin: 6px 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cell {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface2);
+    font-size: 14px;
+    color: var(--text);
+  }
+  .cell.head {
+    border-color: var(--accent);
+    background: rgba(108,99,255,.2);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .cell.state {
+    background: rgba(67,217,173,.15);
+    border-color: var(--green);
+    color: var(--green);
+    font-size: 11px;
+    width: auto;
+    padding: 0 8px;
+  }
+  .cell.accept {
+    background: rgba(67,217,173,.25);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  /* ── QUIZ ── */
+  .quiz-opt {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .quiz-opt:hover { border-color: var(--accent); background: rgba(108,99,255,.08); transform: translateX(4px); }
+  .quiz-opt { transition: all .35s ease-in-out; }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(67,217,173,.12); color: var(--green); }
+  .quiz-opt.wrong { border-color: var(--accent2); background: rgba(255,101,132,.1); color: var(--accent2); }
+  .quiz-feedback { font-size: 13px; margin-top: 10px; padding: 10px 14px; border-radius: 7px; animation: slideIn .5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+  .quiz-feedback.ok { background: rgba(67,217,173,.1); color: var(--green); }
+  .quiz-feedback.bad { background: rgba(255,101,132,.1); color: var(--accent2); }
+
+  /* ── ANIMATION ── */
+  @keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .fade-in { animation: slideIn .5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 6px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px;
+    transition: width .6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #c4b5fd;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+  @keyframes dotPulse { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  .step-indicator {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background .4s ease-in-out, transform .4s ease-in-out, box-shadow .4s ease-in-out;
+  }
+  .step-dot.done { background: var(--accent); animation: dotPulse .6s ease-out; }
+  .step-dot.current { background: var(--green); }
+
+  #sim-log {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    max-height: 140px;
+    overflow-y: auto;
+    margin-top: 12px;
+  }
+  #sim-log p { margin: 2px 0; color: var(--muted); }
+  #sim-log p.highlight { color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Computability Theory</div>
+  <h1>The Post Correspondence<br><span>Problem</span> is Undecidable</h1>
+  <p>An interactive journey from domino puzzles to the limits of computation — level by level.</p>
+</header>
+
+<nav id="main-nav">
+  <button class="active" data-sec="s0">🧩 What is PCP?</button>
+  <button data-sec="s1">🎮 Playground</button>
+  <button data-sec="s2">🔁 Why Undecidable?</button>
+  <button data-sec="s3">⚙️ TM Reduction</button>
+  <button data-sec="s4">🧠 Deep Dive</button>
+  <button data-sec="s5">✅ Quiz</button>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     SECTION 0 · WHAT IS PCP
+═══════════════════════════════════════════ -->
+<section class="section visible" id="s0">
+  <h2>What is the Post Correspondence Problem?</h2>
+  <p>Introduced by Emil Post in 1946, PCP is a puzzle about <strong>matching strings</strong> using a set of domino tiles. It looks simple — but no algorithm can solve it in general.</p>
+
+  <div class="card accent-left">
+    <h3>The Setup</h3>
+    <p>You're given a finite set of <strong>dominoes</strong>. Each domino has a string on top and a string on bottom. Your goal: pick a sequence of dominoes (repetition allowed) so that the string formed by reading all the tops equals the string formed by reading all the bottoms.</p>
+  </div>
+
+  <h3 style="margin-bottom:12px">Example — a solvable instance</h3>
+  <p>Here are 3 dominoes. Can you find a sequence that makes tops = bottoms?</p>
+
+  <div class="domino-row" id="example-dominoes">
+    <div class="domino">
+      <div class="top">ab</div>
+      <div class="bot">b</div>
+    </div>
+    <div class="domino">
+      <div class="top">b</div>
+      <div class="bot">ba</div>
+    </div>
+    <div class="domino">
+      <div class="top">a</div>
+      <div class="bot">aa</div>
+    </div>
+  </div>
+
+  <div style="margin:20px 0;">
+    <button class="btn primary" id="show-hint">Show me a match ✨</button>
+  </div>
+
+  <div id="hint-box" class="card green-left" style="display:none">
+    <h3 style="color:var(--green)">✓ Match found!</h3>
+    <p>Use dominoes in order: <code>2, 1</code></p>
+    <div class="domino-row" id="hint-seq"></div>
+    <div class="concat-bar" style="margin-top:12px">
+      <div><span>Top:</span><span class="top-str" id="hint-top"></span></div>
+      <div><span>Bot:</span><span class="bot-str" id="hint-bot"></span></div>
+      <div><span class="match-ok">✓ They match!</span></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="two-col">
+    <div class="card">
+      <h3>Rules</h3>
+      <ul style="color:#c8cadb;padding-left:18px;line-height:2">
+        <li>You can use each domino <strong>multiple times</strong></li>
+        <li>The sequence can be <strong>any length</strong></li>
+        <li>Order in the sequence matters</li>
+        <li>A "solution" means top-concat = bottom-concat</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Why it's tricky</h3>
+      <ul style="color:#c8cadb;padding-left:18px;line-height:2">
+        <li>No bound on solution length</li>
+        <li>You can't just check all finite sequences</li>
+        <li>Some instances have <strong>no solution</strong> — but how do you know when to stop?</li>
+        <li>That's exactly the undecidability!</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 · PLAYGROUND
+═══════════════════════════════════════════ -->
+<section class="section" id="s1">
+  <h2>Domino Playground</h2>
+  <p>Click dominoes below to add them to your sequence. See if tops and bottoms match!</p>
+
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+      <strong style="font-size:13px;color:var(--muted)">PUZZLE</strong>
+      <select id="puzzle-select" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 12px;font-size:13px">
+        <option value="0">Puzzle A · Easy (has solution)</option>
+        <option value="1">Puzzle B · Medium (has solution)</option>
+        <option value="2">Puzzle C · Hard (no solution!)</option>
+      </select>
+      <button class="btn" id="reload-puzzle">↺ Load</button>
+    </div>
+    <p id="puzzle-desc" style="font-size:13px;color:var(--muted);margin:0"></p>
+  </div>
+
+  <p style="font-size:13px;color:var(--muted)">Available dominoes — click to add:</p>
+  <div class="domino-row" id="pg-dominoes"></div>
+
+  <p style="font-size:13px;color:var(--muted);margin-top:20px">Your sequence:</p>
+  <div class="seq-area" id="pg-seq">
+    <span class="placeholder">Click a domino above to start building…</span>
+  </div>
+
+  <div class="concat-bar" style="margin-top:12px" id="pg-concat">
+    <div><span>Top:</span><span class="top-str" id="pg-top">—</span></div>
+    <div><span>Bot:</span><span class="bot-str" id="pg-bot">—</span></div>
+    <div id="pg-status">—</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn danger" id="pg-undo">⌫ Undo</button>
+    <button class="btn danger" id="pg-reset">✕ Clear</button>
+    <button class="btn primary" id="pg-hint">💡 Hint</button>
+  </div>
+
+  <div id="pg-msg" style="margin-top:14px;font-size:13px;display:none"></div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 · WHY UNDECIDABLE?
+═══════════════════════════════════════════ -->
+<section class="section" id="s2">
+  <h2>Why Can't an Algorithm Solve PCP?</h2>
+  <p>You might think: just write a program that tries all sequences. If a match exists, it'll find it eventually. The problem is the <em>no</em> case — how do you know when to give up?</p>
+
+  <div class="card yellow-left">
+    <h3>The halting problem in disguise</h3>
+    <p>PCP is undecidable because we can <strong>encode any Turing Machine computation</strong> as a PCP instance. If you could solve PCP, you could solve the Halting Problem — which is impossible.</p>
+  </div>
+
+  <h3 style="margin:24px 0 12px">The key insight — search trees grow forever</h3>
+
+  <div class="card">
+    <p>With <em>k</em> dominoes, at sequence length <em>n</em> you have <code>k<sup>n</sup></code> sequences to check. For 3 dominoes:</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin:16px 0">
+      <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:7px">
+        <div style="font-family:var(--font-mono);color:var(--accent);font-size:18px;font-weight:700">3</div>
+        <div style="font-size:11px;color:var(--muted)">length 1</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:7px">
+        <div style="font-family:var(--font-mono);color:var(--accent);font-size:18px;font-weight:700">9</div>
+        <div style="font-size:11px;color:var(--muted)">length 2</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:7px">
+        <div style="font-family:var(--font-mono);color:var(--accent);font-size:18px;font-weight:700">27</div>
+        <div style="font-size:11px;color:var(--muted)">length 3</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--surface2);border-radius:7px">
+        <div style="font-family:var(--font-mono);color:var(--accent);font-size:18px;font-weight:700">∞</div>
+        <div style="font-size:11px;color:var(--muted)">no bound!</div>
+      </div>
+    </div>
+    <p>But the real problem isn't speed — it's that we can't even know <strong>whether the answer exists at all</strong>. There's no computable upper bound on solution length.</p>
+  </div>
+
+  <hr>
+
+  <h3 style="margin-bottom:12px">Semi-decidable vs. Undecidable</h3>
+  <div class="two-col">
+    <div class="card green-left">
+      <h3 style="color:var(--green)">PCP is semi-decidable</h3>
+      <p>If a match exists, a systematic search will eventually find it. We can enumerate all sequences by length and check each one. We'll halt with "YES".</p>
+    </div>
+    <div class="card red-left">
+      <h3 style="color:var(--accent2)">PCP is NOT decidable</h3>
+      <p>If no match exists, we'll search forever and never halt. We can't recognize the "NO" case. A decider must halt on every input — we can't guarantee that.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>The formal statement</h3>
+    <p><strong>Theorem (Post 1946):</strong> The language <code>PCP = { ⟨P⟩ | P is a PCP instance with a match }</code> is <strong>undecidable</strong> but <strong>Turing-recognizable</strong>.</p>
+    <p style="margin-bottom:0"><em>Proof sketch:</em> We show <code>A<sub>TM</sub> ≤<sub>m</sub> PCP</code> — a mapping reduction from the acceptance problem for Turing Machines. Since <code>A<sub>TM</sub></code> is undecidable, so is PCP.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 · TM REDUCTION
+═══════════════════════════════════════════ -->
+<section class="section" id="s3">
+  <h2>Reducing A<sub>TM</sub> to PCP</h2>
+  <p>We prove PCP is undecidable by showing: if we could decide PCP, we could decide whether any Turing Machine accepts any input — which we know is impossible.</p>
+
+  <div class="reduction-box">
+    <div class="reduction-row">
+      <div class="box-label" style="border-color:var(--accent2);color:var(--accent2)">⟨M, w⟩<br><span style="font-size:10px">TM + input</span></div>
+      <div class="arrow">→</div>
+      <div class="box-label" style="border-color:var(--yellow);color:var(--yellow)">f(⟨M,w⟩)<br><span style="font-size:10px">PCP instance</span></div>
+      <div class="arrow">→</div>
+      <div class="box-label" style="border-color:var(--green);color:var(--green)">PCP solver<br><span style="font-size:10px">hypothetical</span></div>
+      <div class="arrow">→</div>
+      <div class="box-label" style="border-color:var(--accent);color:var(--accent)">YES / NO<br><span style="font-size:10px">= M accepts w?</span></div>
+    </div>
+  </div>
+
+  <p>The trick: encode <strong>computation histories</strong> as dominoes. A PCP match exists exactly when the TM has an accepting run on <em>w</em>.</p>
+
+  <hr>
+
+  <h3 style="margin-bottom:12px">What is a computation history?</h3>
+  <p>A computation history is the sequence of <strong>configurations</strong> the TM passes through: tape contents, head position, and current state at each step.</p>
+
+  <div id="tm-demo" style="margin:20px 0">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px">TM processing input <code>aba</code> — step through:</div>
+    <div id="tm-configs"></div>
+    <div class="btn-row">
+      <button class="btn" id="tm-prev">← Prev</button>
+      <button class="btn primary" id="tm-next">Next Step →</button>
+      <button class="btn" id="tm-restart">↺ Restart</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px" id="tm-explain"></div>
+  </div>
+
+  <hr>
+
+  <h3 style="margin-bottom:12px">Domino construction</h3>
+  <p>Given TM <em>M</em> and input <em>w</em>, we build PCP dominoes that encode the step-by-step computation:</p>
+
+  <div class="card accent-left">
+    <h3>Start domino</h3>
+    <p>Forces the match to begin with the initial configuration of M on w.</p>
+    <div class="domino-row">
+      <div class="domino">
+        <div class="top">#q₀w#</div>
+        <div class="bot">#</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:0">Top already has the first configuration. Bottom is empty except for the separator. This forces a "head start" — MPCP variant.</p>
+  </div>
+
+  <div class="card yellow-left">
+    <h3>Transition dominoes</h3>
+    <p>For each TM transition <code>δ(q, a) = (r, b, L/R)</code>, we create a domino that copies the tape while applying the transition:</p>
+    <div class="domino-row">
+      <div class="domino">
+        <div class="top">qa</div>
+        <div class="bot">br</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);align-self:center">move right</div>
+    </div>
+    <div class="domino-row">
+      <div class="domino">
+        <div class="top">cqa</div>
+        <div class="bot">rcb</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);align-self:center">move left (c = any symbol)</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:0">These dominoes "advance" the bottom by one step relative to the top.</p>
+  </div>
+
+  <div class="card green-left">
+    <h3>Copy dominoes</h3>
+    <p>For every tape symbol <code>a</code>, a domino <code>[a/a]</code> copies unchanged tape cells.</p>
+    <div class="domino-row">
+      <div class="domino"><div class="top">a</div><div class="bot">a</div></div>
+      <div class="domino"><div class="top">b</div><div class="bot">b</div></div>
+      <div class="domino"><div class="top">#</div><div class="bot">#</div></div>
+    </div>
+  </div>
+
+  <div class="card red-left">
+    <h3>Accept domino</h3>
+    <p>When the TM reaches an accepting state, dominoes "eat up" all remaining tape symbols and close the match with <code>#</code>.</p>
+    <div class="domino-row">
+      <div class="domino"><div class="top">q<sub>acc</sub>a</div><div class="bot">q<sub>acc</sub></div></div>
+      <div class="domino"><div class="top">aq<sub>acc</sub></div><div class="bot">q<sub>acc</sub></div></div>
+      <div class="domino"><div class="top">q<sub>acc</sub>##</div><div class="bot">#</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:8px">
+    <h3>Why does this work?</h3>
+    <p>The top string accumulates configurations <code>C₁#C₂#C₃#…</code>. The bottom string accumulates <code>#C₁#C₂#…Cₙ</code> — always <em>one step behind</em>. A complete match forces <code>C₁#C₂#…#Cₙ = #C₁#…#Cₙ#</code>, which means the top and bottom strings can only equalize if the machine reaches an accepting configuration <code>Cₙ</code> that can be "absorbed" by accept dominoes.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 · DEEP DIVE
+═══════════════════════════════════════════ -->
+<section class="section" id="s4">
+  <h2>Deep Dive — Consequences &amp; Variants</h2>
+  <p>PCP is not just an academic curiosity. Its undecidability is a <strong>powerful tool</strong> for proving other problems undecidable.</p>
+
+  <div class="card accent-left">
+    <h3>MPCP — Modified PCP</h3>
+    <p>The Modified PCP (MPCP) fixes the <em>first domino</em> in the sequence. It's also undecidable, and the TM-to-PCP reduction naturally targets MPCP (the start domino is "first"). Standard PCP is then reduced from MPCP via a <strong>padding gadget</strong>: new symbols are introduced to simulate the start-domino constraint without fixing the first element.</p>
+  </div>
+
+  <div class="card yellow-left">
+    <h3>PCP over binary alphabet</h3>
+    <p>Even restricting to the alphabet <code>{0, 1}</code>, PCP remains undecidable. The TM alphabet can always be encoded in binary, so the reduction still works.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>Problems that reduce FROM PCP</h3>
+    <p>Because PCP is undecidable, we can use it to prove other problems undecidable by showing reductions <code>PCP ≤ₘ X</code>:</p>
+    <ul style="color:#c8cadb;padding-left:18px;line-height:2.2;margin-top:8px">
+      <li><strong>CFL Ambiguity</strong> — Is a context-free grammar ambiguous?</li>
+      <li><strong>CFG Intersection</strong> — Do two context-free languages intersect?</li>
+      <li><strong>Post Canonical Systems</strong></li>
+      <li><strong>Wang Tiling</strong> — Can a set of tiles tile the plane?</li>
+      <li><strong>Mortality of Matrix Products</strong></li>
+    </ul>
+  </div>
+
+  <hr>
+
+  <h3 style="margin-bottom:12px">The decidability landscape</h3>
+  <div style="position:relative;margin:20px 0">
+    <div style="border:1px solid var(--border);border-radius:12px;padding:20px;background:var(--surface)">
+      <div style="text-align:center;font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:14px">DECIDABILITY HIERARCHY</div>
+      <div style="border:1px solid var(--green);border-radius:8px;padding:16px;margin-bottom:10px;background:rgba(67,217,173,.05)">
+        <div style="color:var(--green);font-weight:700;font-size:13px">DECIDABLE</div>
+        <div style="font-size:12px;color:#c8cadb;margin-top:6px">DFA emptiness · CFL membership · Regular language problems · Small PCP instances</div>
+      </div>
+      <div style="border:1px solid var(--yellow);border-radius:8px;padding:16px;margin-bottom:10px;background:rgba(255,209,102,.05)">
+        <div style="color:var(--yellow);font-weight:700;font-size:13px">UNDECIDABLE but RECOGNIZABLE (RE)</div>
+        <div style="font-size:12px;color:#c8cadb;margin-top:6px"><strong style="color:var(--accent)">PCP</strong> · A<sub>TM</sub> · Halting problem · CFG ambiguity</div>
+      </div>
+      <div style="border:1px solid var(--accent2);border-radius:8px;padding:16px;background:rgba(255,101,132,.05)">
+        <div style="color:var(--accent2);font-weight:700;font-size:13px">NOT RECOGNIZABLE (co-RE and beyond)</div>
+        <div style="font-size:12px;color:#c8cadb;margin-top:6px">Complement of A<sub>TM</sub> · TOTAL<sub>TM</sub> · ̄PCP</div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <h3 style="margin-bottom:12px">Common pitfalls</h3>
+
+  <div class="card red-left">
+    <h3>"Dominoes can be reused" — most forgotten rule</h3>
+    <p>In PCP, repetition is <em>essential</em> — it's what makes the search infinite. Without repetition, you'd only need to check finitely many sequences (all permutations), which would be decidable.</p>
+  </div>
+
+  <div class="card red-left">
+    <h3>"The strings just need to be the same length"</h3>
+    <p>Wrong. The <em>actual strings</em> — their characters, not just their lengths — must match. The reduction encodes TM transitions so that "tops = bottoms" means "transitions are valid and the TM accepts."</p>
+  </div>
+
+  <div class="card red-left">
+    <h3>"We can just run the solver and check if it loops"</h3>
+    <p>This is the core misconception. We cannot detect looping from the outside — that would solve the Halting Problem. We can enumerate matches for the YES case, but there's no mechanical way to confirm the NO case.</p>
+  </div>
+
+  <hr>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 · QUIZ
+═══════════════════════════════════════════ -->
+<section class="section" id="s5">
+  <h2>Test Your Understanding</h2>
+  <p>Five questions — from basic to proof-level. Answers are revealed immediately.</p>
+
+  <div class="step-indicator" id="quiz-dots"></div>
+  <div class="progress-bar"><div class="progress-fill" id="quiz-progress" style="width:0%"></div></div>
+
+  <div id="quiz-container" style="margin-top:28px"></div>
+</section>
+
+<script>
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+const nav = document.getElementById('main-nav');
+nav.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+    const target = document.getElementById(btn.dataset.sec);
+    target.classList.add('visible');
+    target.classList.add('fade-in');
+    window.scrollTo(0, 0);
+  });
+});
+
+// ══════════════════════════════════════════
+// SECTION 0 — EXAMPLE HINT
+// ══════════════════════════════════════════
+const exDominoes = [
+  {t:'ab', b:'b'},
+  {t:'b',  b:'ba'},
+  {t:'a',  b:'aa'},
+];
+const hintSeq = [1, 0]; // 1-indexed in display, 0-indexed here
+
+document.getElementById('show-hint').addEventListener('click', () => {
+  const box = document.getElementById('hint-box');
+  box.style.display = 'block';
+  const seqEl = document.getElementById('hint-seq');
+  seqEl.innerHTML = '';
+  let tops = '', bots = '';
+  hintSeq.forEach(i => {
+    const d = exDominoes[i];
+    tops += d.t; bots += d.b;
+    const el = document.createElement('div');
+    el.className = 'domino selected';
+    el.innerHTML = `<div class="top">${d.t}</div><div class="bot">${d.b}</div>`;
+    seqEl.appendChild(el);
+  });
+  document.getElementById('hint-top').textContent = tops;
+  document.getElementById('hint-bot').textContent = bots;
+});
+
+// ══════════════════════════════════════════
+// SECTION 1 — PLAYGROUND
+// ══════════════════════════════════════════
+const puzzles = [
+  {
+    desc: 'Easy: 3 dominoes, solution uses 4 tiles.',
+    dominoes: [{t:'ab',b:'b'},{t:'b',b:'ba'},{t:'a',b:'aa'}],
+    hint: [0,1,0,2],
+    hasSolution: true
+  },
+  {
+    desc: 'Medium: 4 dominoes. Think carefully about how to even out the strings.',
+    dominoes: [{t:'a',b:'ab'},{t:'ab',b:'b'},{t:'b',b:'a'},{t:'bba',b:'b'}],
+    hint: [1,0,2,3,0],
+    hasSolution: true
+  },
+  {
+    desc: 'Hard: 3 dominoes. No solution exists — you can search forever and never find one!',
+    dominoes: [{t:'ab',b:'aba'},{t:'ab',b:'b'},{t:'b',b:'bb'}],
+    hint: null,
+    hasSolution: false
+  }
+];
+
+let pgState = { puzzle: 0, seq: [] };
+
+function loadPuzzle() {
+  const idx = parseInt(document.getElementById('puzzle-select').value);
+  pgState = { puzzle: idx, seq: [] };
+  renderPGDominoes();
+  renderPGSeq();
+  document.getElementById('puzzle-desc').textContent = puzzles[idx].desc;
+  document.getElementById('pg-msg').style.display = 'none';
+}
+
+function renderPGDominoes() {
+  const el = document.getElementById('pg-dominoes');
+  el.innerHTML = '';
+  puzzles[pgState.puzzle].dominoes.forEach((d, i) => {
+    const div = document.createElement('div');
+    div.className = 'domino';
+    div.innerHTML = `<div class="top">${d.t}</div><div class="bot">${d.b}</div>`;
+    div.title = `Click to add domino ${i+1}`;
+    div.addEventListener('click', () => {
+      pgState.seq.push(i);
+      renderPGSeq();
+    });
+    el.appendChild(div);
+  });
+}
+
+function renderPGSeq() {
+  const seqEl = document.getElementById('pg-seq');
+  const p = puzzles[pgState.puzzle];
+  seqEl.innerHTML = '';
+  if (pgState.seq.length === 0) {
+    seqEl.innerHTML = '<span class="placeholder">Click a domino above to start building…</span>';
+    document.getElementById('pg-top').textContent = '—';
+    document.getElementById('pg-bot').textContent = '—';
+    document.getElementById('pg-status').innerHTML = '—';
+    return;
+  }
+  let tops = '', bots = '';
+  pgState.seq.forEach(i => {
+    const d = p.dominoes[i];
+    tops += d.t; bots += d.b;
+    const div = document.createElement('div');
+    div.className = 'domino';
+    div.innerHTML = `<div class="top">${d.t}</div><div class="bot">${d.b}</div>`;
+    seqEl.appendChild(div);
+  });
+  document.getElementById('pg-top').textContent = tops;
+  document.getElementById('pg-bot').textContent = bots;
+  if (tops === bots) {
+    document.getElementById('pg-status').innerHTML = '<span class="match-ok">✓ MATCH!</span>';
+  } else if (tops.startsWith(bots) || bots.startsWith(tops)) {
+    document.getElementById('pg-status').innerHTML = '<span style="color:var(--yellow)">⌛ Partial match — keep going</span>';
+  } else {
+    document.getElementById('pg-status').innerHTML = '<span class="match-no">✗ No match yet</span>';
+  }
+}
+
+document.getElementById('reload-puzzle').addEventListener('click', loadPuzzle);
+document.getElementById('pg-undo').addEventListener('click', () => { pgState.seq.pop(); renderPGSeq(); });
+document.getElementById('pg-reset').addEventListener('click', () => { pgState.seq = []; renderPGSeq(); });
+document.getElementById('pg-hint').addEventListener('click', () => {
+  const p = puzzles[pgState.puzzle];
+  const msg = document.getElementById('pg-msg');
+  msg.style.display = 'block';
+  if (p.hint) {
+    msg.className = 'card green-left';
+    msg.innerHTML = `<strong>Hint:</strong> Try domino sequence: <code>${p.hint.map(i=>i+1).join(', ')}</code>`;
+  } else {
+    msg.className = 'card red-left';
+    msg.innerHTML = `<strong>Hint:</strong> This puzzle has no solution! No sequence of any length will produce a match. That's exactly the undecidability — you could search forever.`;
+  }
+});
+
+loadPuzzle();
+
+// ══════════════════════════════════════════
+// SECTION 3 — TM DEMO
+// ══════════════════════════════════════════
+const tmSteps = [
+  { tape: ['a','b','a'], head: 0, state: 'q₀', explain: 'Initial configuration. TM starts in state q₀ reading the first symbol "a".' },
+  { tape: ['X','b','a'], head: 1, state: 'q₁', explain: 'Replaced "a" with "X", moved right to state q₁. Now reading "b".' },
+  { tape: ['X','Y','a'], head: 2, state: 'q₂', explain: 'Replaced "b" with "Y", moved right to state q₂. Now reading "a".' },
+  { tape: ['X','Y','X'], head: 1, state: 'q₃', explain: 'Replaced "a" with "X", moved left to q₃. Scanning for unmarked symbols.' },
+  { tape: ['X','Y','X'], head: 3, state: 'q_acc', explain: 'All symbols matched! Transitioned to q_accept. TM accepts input "aba".' },
+];
+let tmStep = 0;
+
+function renderTM() {
+  const el = document.getElementById('tm-configs');
+  el.innerHTML = '';
+  for (let s = 0; s <= tmStep; s++) {
+    const cfg = tmSteps[s];
+    const row = document.createElement('div');
+    row.className = 'config-row';
+    const stepLabel = document.createElement('span');
+    stepLabel.style.cssText = 'font-size:11px;color:var(--muted);width:24px;text-align:right;flex-shrink:0';
+    stepLabel.textContent = `C${s}:`;
+    row.appendChild(stepLabel);
+    const stateEl = document.createElement('div');
+    stateEl.className = `cell state${cfg.state === 'q_acc' ? ' accept' : ''}`;
+    stateEl.textContent = cfg.state;
+    row.appendChild(stateEl);
+    cfg.tape.forEach((sym, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (i === cfg.head && s === tmStep ? ' head' : '');
+      cell.textContent = sym;
+      row.appendChild(cell);
+    });
+    el.appendChild(row);
+  }
+  document.getElementById('tm-explain').textContent = tmSteps[tmStep].explain;
+  document.getElementById('tm-next').disabled = tmStep >= tmSteps.length - 1;
+  document.getElementById('tm-prev').disabled = tmStep === 0;
+}
+
+document.getElementById('tm-next').addEventListener('click', () => { if (tmStep < tmSteps.length-1) { tmStep++; renderTM(); } });
+document.getElementById('tm-prev').addEventListener('click', () => { if (tmStep > 0) { tmStep--; renderTM(); } });
+document.getElementById('tm-restart').addEventListener('click', () => { tmStep = 0; renderTM(); });
+renderTM();
+
+// ══════════════════════════════════════════
+// SECTION 5 — QUIZ
+// ══════════════════════════════════════════
+const questions = [
+  {
+    q: 'In PCP, can the same domino appear more than once in the matching sequence?',
+    opts: ['No — each domino can only be used once.', 'Yes — dominoes may be reused any number of times.', 'Yes — but only adjacent duplicates are allowed.', 'Only if the domino has equal-length top and bottom strings.'],
+    answer: 1,
+    exp: "Repetition is allowed and is the key feature that makes the search space infinite. Without repetition, you'd only need to check finitely many permutations, making PCP decidable."
+  },
+  {
+    q: 'PCP is Turing-recognizable. What does that mean in practice?',
+    opts: ['There is an algorithm that always terminates with YES or NO.', 'An enumerator can list all YES instances, but the NO case may loop forever.', 'A Turing machine can decide it in polynomial time.', 'No Turing machine can process PCP instances at all.'],
+    answer: 1,
+    exp: "Semi-decidable (Turing-recognizable) means we can enumerate and check sequences — if a match exists, we'll find it. But if there's no match, the search never terminates, so we can't output NO."
+  },
+  {
+    q: 'Why is PCP useful for proving other problems undecidable?',
+    opts: ['Because PCP is NP-complete.', 'Because PCP is decidable in exponential time.', 'Because we can reduce PCP to other problems, inheriting undecidability.', 'Because any language can be reduced to PCP.'],
+    answer: 2,
+    exp: 'PCP ≤ₘ X means if X were decidable, we could decide PCP — contradiction. CFL ambiguity, CFG intersection, and tiling problems are proven undecidable this way.'
+  },
+  {
+    q: 'In the TM → PCP reduction, what do transition dominoes encode?',
+    opts: ['The initial tape contents.', 'How the TM transitions from one configuration to the next.', 'The final accepting state only.', 'The length of the computation.'],
+    answer: 1,
+    exp: 'Each transition δ(q,a)=(r,b,dir) creates a domino. The top carries part of configuration Cᵢ; the bottom carries the corresponding part of Cᵢ₊₁. Combining all dominoes in sequence builds the whole computation history.'
+  },
+  {
+    q: 'What is the correct formal statement about the relationship between A_TM and PCP?',
+    opts: ['PCP ≤ₘ A_TM (PCP reduces to the TM acceptance problem)', 'A_TM ≤ₘ PCP (TM acceptance reduces to PCP)', 'PCP and A_TM are incomparable.', 'A_TM is decidable while PCP is not.'],
+    answer: 1,
+    exp: 'We reduce A_TM to PCP: given ⟨M,w⟩, we construct a PCP instance that has a match iff M accepts w. Since A_TM is undecidable, PCP must be undecidable too. The arrow in the reduction goes from A_TM to PCP.'
+  }
+];
+
+let quizState = questions.map(() => null);
+let quizDone = 0;
+
+function renderQuiz() {
+  const dots = document.getElementById('quiz-dots');
+  dots.innerHTML = '';
+  questions.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'step-dot' + (quizState[i] !== null ? ' done' : '');
+    dots.appendChild(d);
+  });
+  document.getElementById('quiz-progress').style.width = (quizDone / questions.length * 100) + '%';
+
+  const container = document.getElementById('quiz-container');
+  container.innerHTML = '';
+  questions.forEach((q, qi) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginBottom = '20px';
+    const answered = quizState[qi] !== null;
+    card.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Question ${qi+1} of ${questions.length}</div>
+      <h3 style="margin-bottom:14px">${q.q}</h3>
+      ${q.opts.map((opt, oi) => `
+        <div class="quiz-opt ${answered ? (oi === q.answer ? 'correct' : (oi === quizState[qi] ? 'wrong' : '')) : ''}"
+          data-qi="${qi}" data-oi="${oi}" ${answered ? '' : 'onclick="pickAnswer(this)"'}>
+          <span style="font-family:var(--font-mono);color:var(--muted);margin-right:10px">${'ABCD'[oi]}.</span>${opt}
+        </div>`).join('')}
+      ${answered ? `<div class="quiz-feedback ok"><strong>Explanation:</strong> ${q.exp}</div>` : ''}
+    `;
+    container.appendChild(card);
+  });
+}
+
+window.pickAnswer = function(el) {
+  const qi = parseInt(el.dataset.qi);
+  const oi = parseInt(el.dataset.oi);
+  if (quizState[qi] !== null) return;
+  quizState[qi] = oi;
+  quizDone = quizState.filter(x => x !== null).length;
+  renderQuiz();
+};
+
+renderQuiz();
+</script>
+</body>
+</html>
